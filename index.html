@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>拍错题 · 出类似题</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+body{background:#f0f2f5;color:#222;padding-bottom:64px}
+.head{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:20px 16px;text-align:center}
+.head h1{font-size:20px}.head p{font-size:12px;opacity:.85;margin-top:4px}
+.card{background:#fff;margin:12px;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card h2{font-size:15px;color:#4f46e5;margin-bottom:10px;border-left:4px solid #7c3aed;padding-left:8px}
+.btn{display:inline-block;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer}
+.btn.grey{background:#e5e7eb;color:#374151}.btn.green{background:#16a34a}.btn:disabled{opacity:.5}
+.upload-box{border:2px dashed #cbd5e1;border-radius:10px;padding:18px;text-align:center;color:#64748b;cursor:pointer;margin-bottom:10px}
+.upload-box img{max-width:100%;border-radius:8px;margin-top:8px;display:block}
+.upload-box .hint{font-size:12px;color:#94a3b8;margin-top:6px}
+textarea{width:100%;border:1px solid #ddd;border-radius:8px;padding:10px;font-size:14px;min-height:72px;margin-top:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.badge{display:inline-block;background:#ede9fe;color:#4f46e5;border-radius:6px;padding:2px 8px;font-size:12px;margin-right:6px}
+.item{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:12px}
+.src{font-size:11px;color:#64748b;margin-bottom:6px}
+.src a{color:#4f46e5;text-decoration:none}
+.q{font-size:14px;font-weight:600;margin:6px 0;line-height:1.5}
+.ans-box{background:#f8fafc;border-radius:8px;padding:10px;margin:6px 0;font-size:13px;line-height:1.6}
+.ans-box .stem{font-weight:600}
+.ans-box .parse{color:#64748b;margin-top:4px}
+.answer-input{width:100%;border:1px solid #ddd;border-radius:8px;padding:8px;font-size:14px;margin-top:6px}
+.verdict{margin-top:8px;font-size:14px;font-weight:700}
+.verdict.ok{color:#16a34a}.verdict.no{color:#dc2626}
+.small-btn{font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;color:#475569;margin-top:6px;cursor:pointer}
+.hidden{display:none}
+ul{list-style:none}
+li.rec{background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px;line-height:1.6}
+li.rec .t{color:#64748b;font-size:11px}
+li.rec .del{float:right;color:#dc2626;border:none;background:none;cursor:pointer;font-size:14px}
+.toolbar{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #e5e7eb;z-index:9}
+.toolbar button{flex:1;border:none;background:none;padding:12px;font-size:14px;color:#475569;border-right:1px solid #eee}
+.toolbar button.active{color:#7c3aed;font-weight:700}
+#toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.3s;z-index:99;max-width:90%;text-align:center}
+.prog{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:99;width:80%;text-align:center}
+.prog .bar{height:6px;background:#333;border-radius:3px;margin-top:6px;overflow:hidden}
+.prog .bar i{display:block;height:100%;background:#7c3aed;width:0;transition:width .2s}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+<div class="head"><h1>📸 错题出题系统</h1><p>输/拍错题 · 出2道类似真题 · 自动判对错 · 收藏错题</p></div>
+
+<!-- 步骤1 -->
+<div class="card" id="step1">
+  <h2>① 输入 / 拍照错题</h2>
+  <div class="upload-box" id="ocrBox">
+    点击拍照或选择错题图片（可识别后自动填入）
+    <input type="file" id="wrongFile" accept="image/*" capture="environment" style="display:none">
+    <div id="wrongPreview"></div>
+    <div class="hint">📷 OCR 自动识别可试用；识别不了直接手动输入下方题目即可。</div>
+  </div>
+  <textarea id="wrongText" placeholder="把错题的文字打在这里，例如：有68个面包，每9个装一袋，可以装几袋，还剩多少个？"></textarea>
+  <div class="row">
+    <button class="btn" id="genBtn" onclick="generate()">✨ 生成 2 道类似题</button>
+    <button class="btn grey" onclick="clearAll()">清空</button>
+  </div>
+  <div id="recogInfo" class="hidden" style="margin-top:10px"></div>
+</div>
+
+<!-- 步骤2 -->
+<div class="card hidden" id="step2">
+  <h2>② 新题与判题</h2>
+  <div id="items"></div>
+  <button class="btn green" style="width:100%" onclick="saveRecord()">⭐ 收藏这道错题</button>
+</div>
+
+<!-- 步骤3: 错题本 -->
+<div class="card hidden" id="step3">
+  <h2>③ 我的错题本</h2>
+  <ul id="recordList"></ul>
+</div>
+
+<div class="toolbar">
+  <button class="active" id="tab1" onclick="tab(1)">出题</button>
+  <button id="tab3" onclick="tab(3,true)">错题本</button>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script>
+const BANK = window.CUOTI_BANK;
+let lastItems = null, ocrTries = 0;
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;setTimeout(()=>t.style.opacity=0,2200);}
+function tab(n,load){
+  const s1=document.getElementById('step1'),s2=document.getElementById('step2'),s3=document.getElementById('step3');
+  if(n===3){s3.classList.remove('hidden');s1.classList.add('hidden');s2.classList.add('hidden');
+    document.getElementById('tab1').classList.remove('active');document.getElementById('tab3').classList.add('active');
+    if(load)loadRecords();
+  }else{s1.classList.remove('hidden');s2.classList.remove('hidden');s3.classList.add('hidden');
+    document.getElementById('tab3').classList.remove('active');document.getElementById('tab1').classList.add('active');}
+}
+function clearAll(){
+  document.getElementById('wrongText').value='';
+  document.getElementById('wrongPreview').innerHTML='';
+  document.getElementById('recogInfo').classList.add('hidden');
+  document.getElementById('items').innerHTML='';
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('wrongFile').value='';
+  toast('已清空');
+}
+
+// ---- 拍照OCR增强：懒加载 tesseract.js ----
+document.getElementById('ocrBox').addEventListener('click', e=>{
+  if(e.target.tagName==='IMG')return;
+  document.getElementById('wrongFile').click();
+});
+document.getElementById('wrongFile').addEventListener('change', e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{document.getElementById('wrongPreview').innerHTML='<img src="'+ev.target.result+'">';};
+  reader.readAsDataURL(f);
+  doOcr(f);
+});
+function doOcr(file){
+  toast('正在加载识别引擎(首次稍慢)...');
+  const loadScript=()=>new Promise((res,rej)=>{
+    if(window.Tesseract)return res();
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload=res;s.onerror=()=>rej(new Error('load-fail'));
+    document.head.appendChild(s);
+  });
+  loadScript().then(()=>{
+    const pd=document.createElement('div');pd.className='prog';pd.id='prog';
+    pd.innerHTML='<div>正在识别题目文字…</div><div class="bar"><i id="progbar"></i></div>';
+    document.body.appendChild(pd);
+    window.Tesseract.recognize(file,'chi_sim',{
+      logger:m=>{if(m.status==='recognizing text'){const p=Math.round((m.progress||0)*100);const b=document.getElementById('progbar');if(b)b.style.width=p+'%';}}
+    }).then(({data})=>{
+      const el=document.getElementById('prog');if(el)el.remove();
+      const txt=(data.text||'').replace(/\s+/g,' ').trim();
+      if(txt){document.getElementById('wrongText').value=txt;toast('✅ 已识别，请核对后出题');}
+      else{toast('未识别到题目，请手动输入');}
+    }).catch(err=>{const el=document.getElementById('prog');if(el)el.remove();toast('OCR 不可用，请直接手动输入题目');});
+  }).catch(()=>{toast('OCR 加载失败，请手动输入题目');});
+}
+
+// ---- 出题 ----
+function generate(){
+  const wrong=document.getElementById('wrongText').value.trim();
+  if(!wrong){toast('请先输入或识别错题');return;}
+  const b=document.getElementById('genBtn');b.disabled=true;b.textContent='生成中...';
+  setTimeout(()=>{
+  const r=CUOTI_ENGINE.run(wrong,BANK);
+  if(!r){toast('题库暂无匹配的知识点，请换一道或稍后补充');b.disabled=false;b.textContent='✨ 生成 2 道类似题';return;}
+  document.getElementById('recogInfo').classList.remove('hidden');
+  document.getElementById('recogInfo').innerHTML=
+    '<span class="badge">知识点:'+r.knowledge+'</span><span class="badge">题型:'+r.type+'</span><span class="badge">学段:'+r.stage+'</span><span class="badge">难度:'+r.difficulty+'</span>';
+  renderItems(r.results);
+  document.getElementById('step2').classList.remove('hidden');
+  const n=r.results.reduce((s,x)=>s+x.variants.length,0);
+  toast('已生成 '+n+' 道类似题');
+  b.disabled=false;b.textContent='✨ 生成 2 道类似题';
+  },30);
+}
+
+function renderItems(results){
+  lastItems=results;
+  const box=document.getElementById('items');box.innerHTML='';
+  results.forEach((it,ii)=>{
+    const o=it.origin;
+    const card=document.createElement('div');card.className='item';
+    let html='<div class="src">📚 源自真实真题：'+o.orig+'<br>来源：<a href="'+o.source.url+'" target="_blank" rel="noopener">'+o.source.name+'</a></div>';
+    it.variants.forEach((v,vi)=>{
+      const id='q'+ii+'_'+vi;
+      html+='<div style="margin-top:10px;border-top:1px dashed #eee;padding-top:8px">';
+      html+='<div class="q">题'+(vi+1)+'：'+v.stem+'</div>';
+      html+='<div class="ans-box"><div class="stem">✅ 答案：<span id="ans'+id+'">'+v.answer+'</span></div><div class="parse hidden" id="parse'+id+'">📖 解析：'+v.solve+'</div></div>';
+      html+='<input class="answer-input" id="stu'+id+'" placeholder="输入你的答案，点“判定对错”">';
+      html+='<div class="row">';
+      html+='<button class="small-btn" onclick="showParse(\''+id+'\')">💡 看解析</button>';
+      html+='<button class="btn green" style="padding:7px 14px" onclick="judge(\''+id+'\')">判定对错</button></div>';
+      html+='<div class="verdict hidden" id="v'+id+'"></div></div>';
+    });
+    card.innerHTML=html;
+    box.appendChild(card);
+  });
+}
+function showParse(id){const p=document.getElementById('parse'+id);p.classList.toggle('hidden');}
+
+function judge(id){
+  const stu=document.getElementById('stu'+id).value.trim();
+  const golden=document.getElementById('ans'+id).textContent;
+  if(!stu){toast('请先输入答案');return;}
+  const ok=CUOTI_ENGINE.judge(stu,golden);
+  const v=document.getElementById('v'+id);v.classList.remove('hidden');
+  if(ok){v.className='verdict ok';v.textContent='✅ 回答正确！';}
+  else{v.className='verdict no';v.textContent='❌ 不对，正确答案是：'+golden;}
+}
+
+// ---- 错题本 (localStorage) ----
+const REC_KEY='cuoti_records_v1';
+function getRecs(){try{return JSON.parse(localStorage.getItem(REC_KEY)||'[]');}catch(e){return[];}}
+function setRecs(r){localStorage.setItem(REC_KEY,JSON.stringify(r));}
+function saveRecord(){
+  const wrong=document.getElementById('wrongText').value.trim();
+  if(!wrong){toast('没有可收藏的错题');return;}
+  const ri=document.getElementById('recogInfo');
+  const km=ri.classList.contains('hidden')?null:ri.textContent.match(/知识点:([^题型]+)/);
+  const knowledge=km?km[1].trim():'';
+  const gen=lastItems?lastItems.map(it=>it.variants.map(v=>({stem:v.stem,answer:v.answer,solve:v.solve}))).flat():[];
+  const rec={id:('r'+Date.now().toString(36)),time:new Date().toLocaleString('zh-CN',{hour12:false}),wrong,knowledge,generated:gen};
+  const rs=getRecs();rs.unshift(rec);
+  if(rs.length>200)rs.pop();
+  setRecs(rs);toast('已收藏本错题 '+wrong.slice(0,12)+'…');
+}
+function loadRecords(){
+  const rs=getRecs();
+  const ul=document.getElementById('recordList');ul.innerHTML='';
+  if(!rs.length){ul.innerHTML='<li class="rec" style="color:#94a3b8">还没有收藏的错题</li>';return;}
+  rs.forEach(r=>{
+    const li=document.createElement('li');li.className='rec';
+    li.innerHTML='<button class="del" onclick="delRec(\''+r.id+'\')">×</button>'+
+      '<div class="t">'+r.time+' · '+(r.knowledge||'未识别')+'</div>'+
+      '<div>📝 '+esc(r.wrong)+'</div>'+
+      (r.generated&&r.generated.length?('<div style="margin-top:4px;color:#4f46e5">🔁 生成 '+r.generated.length+' 道：</div>'+r.generated.map(g=>'<div style="margin-top:2px">• '+esc(g.stem)+'</div>').join('')):'');
+    ul.appendChild(li);
+  });
+}
+function delRec(id){setRecs(getRecs().filter(r=>r.id!==id));loadRecords();toast('已删除');}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+</script>
+</body>
+</html>
